@@ -23,8 +23,9 @@ class GameScene extends Phaser.Scene {
         this.timeoutText.setText('Text:' + this.timeout);
 
         if(this.timeout <= 0) {
+            this.timer.paused = true;
             this.sounds.timeout.play();
-            this.start();
+            this.restart();
         } else {
             this.timeout--;
         }
@@ -32,7 +33,7 @@ class GameScene extends Phaser.Scene {
 
     createTimer() {
         console.log('this', this.time)
-        this.time.addEvent({
+        this.timer = this.time.addEvent({
             delay: 1000,
             callback: this.onTimerTick,
             callbackScope: this,
@@ -49,7 +50,9 @@ class GameScene extends Phaser.Scene {
             timeout: this.sound.add('timeout')
         };
 
-        // this.sounds.theme.play();
+        this.sounds.theme.play({
+            volume: 0.1
+        });
     }
 
     create() {
@@ -71,21 +74,60 @@ class GameScene extends Phaser.Scene {
         console.log('timeoutText', this.timeoutText)
     }
 
+    restart() {
+        let count = 0;
+
+        const onCardMoveComplete = () => {
+            ++count;
+
+            if(count === this.cards.length) {
+                this.start();
+            }
+        };
+
+
+        this.cards.forEach((card) => {
+            console.log('card', card)
+            card.move({
+                x: this.sys.game.config.width + card.width,
+                y: this.sys.game.config.height + card.height,
+                delay: card.position.delay,
+                callback: onCardMoveComplete
+            });
+        })
+
+
+        // this.start();
+    }
+
     start() {
         this.timeout = config.timeout;
         this.openedCard = null;
         this.openedCardsCount = 0;
+        this.timer.paused = false;
         this.initCards();
+        this.showCards();
     }
+
     initCards() {
         let positions = this.getCardsPositions();
 
         this.cards.forEach(card => {
-            let position = positions.pop();
-            card.close();
-            card.setPosition(position.x, position.y);
+            card.init(positions.pop())
         });
     }
+
+    showCards() {
+        this.cards.forEach((card) => {
+            card.depth = card.position.delay;
+            card.move({
+                x: card.position.x,
+                y: card.position.y,
+                delay: card.position.delay
+            });
+        })
+    }
+
     createBackground() {
         this.add.sprite(0, 0, 'bg').setOrigin(0, 0);
     }
@@ -124,12 +166,12 @@ class GameScene extends Phaser.Scene {
             this.openedCard = card;
         }
 
-        card.open();
-
-        if (this.openedCardsCount === this.cards.length / 2) {
-            this.sounds.complete.play();
-            this.start();
-        }
+        card.open(() => {
+            if (this.openedCardsCount === this.cards.length / 2) {
+                this.sounds.complete.play();
+                this.restart();
+            }
+        });
     }
     getCardsPositions() {
         let positions = [];
@@ -138,10 +180,13 @@ class GameScene extends Phaser.Scene {
         let cardHeight = cardTexture.height + 4;
         let offsetX = (this.sys.game.config.width - cardWidth * config.cols) / 2 + (cardWidth / 2);
         let offsetY = (this.sys.game.config.height - cardHeight * config.rows) / 2 + (cardHeight / 2);
-    
+        
+        let id = 0
+
         for (let row = 0; row < config.rows; row++) {
             for (let col = 0; col < config.cols; col++) {
                 positions.push({
+                    delay: ++id * 100,
                     x: offsetX + col * cardWidth,
                     y: offsetY + row * cardHeight,
                 });
