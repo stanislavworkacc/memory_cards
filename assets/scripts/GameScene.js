@@ -10,8 +10,52 @@ class GameScene extends Phaser.Scene {
         this.load.image('card3', 'assets/sprites/card3.png');
         this.load.image('card4', 'assets/sprites/card4.png');
         this.load.image('card5', 'assets/sprites/card5.png');
+
+        this.load.audio('theme', 'assets/sounds/theme.mp3');
+        this.load.audio('card', 'assets/sounds/card.mp3');
+        this.load.audio('complete', 'assets/sounds/complete.mp3');
+        this.load.audio('success', 'assets/sounds/success.mp3');
+        this.load.audio('timeout', 'assets/sounds/timeout.mp3');
     }
+
+    onTimerTick() {
+        console.log('TICK', this);
+        this.timeoutText.setText('Text:' + this.timeout);
+
+        if(this.timeout <= 0) {
+            this.sounds.timeout.play();
+            this.start();
+        } else {
+            this.timeout--;
+        }
+    }
+
+    createTimer() {
+        console.log('this', this.time)
+        this.time.addEvent({
+            delay: 1000,
+            callback: this.onTimerTick,
+            callbackScope: this,
+            loop: true
+        })
+    }
+
+    createSounds() {
+        this.sounds = {
+            card: this.sound.add('card'),
+            theme: this.sound.add('theme'),
+            complete: this.sound.add('complete'),
+            success: this.sound.add('success'),
+            timeout: this.sound.add('timeout')
+        };
+
+        // this.sounds.theme.play();
+    }
+
     create() {
+        this.timeout = config.timeout;
+        this.createSounds();
+        this.createTimer();
         this.createBackground();
         this.createText();
         this.createCards();
@@ -19,7 +63,7 @@ class GameScene extends Phaser.Scene {
     }
 
     createText() {
-        this.timeoutText = this.add.text(10, 330, 'Time: 30', {
+        this.timeoutText = this.add.text(10, 330, '', {
             font: '36px CurseCasual',
             fill: '#ffffff'
         })
@@ -28,6 +72,7 @@ class GameScene extends Phaser.Scene {
     }
 
     start() {
+        this.timeout = config.timeout;
         this.openedCard = null;
         this.openedCardsCount = 0;
         this.initCards();
@@ -60,9 +105,12 @@ class GameScene extends Phaser.Scene {
             return false;
         }
 
+        this.sounds.card.play();
+
         if (this.openedCard) {
             // уже есть открытая карта
             if (this.openedCard.value === card.value) {
+                this.sounds.success.play();
                 // картинки равны - запомнить
                 this.openedCard = null;
                 ++this.openedCardsCount;
@@ -79,6 +127,7 @@ class GameScene extends Phaser.Scene {
         card.open();
 
         if (this.openedCardsCount === this.cards.length / 2) {
+            this.sounds.complete.play();
             this.start();
         }
     }
